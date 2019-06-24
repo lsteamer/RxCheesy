@@ -45,13 +45,15 @@ class CheeseActivity : BaseSearchActivity() {
     searchTextObservable
         // 1 - Code should start on the Main thread since it works with View
         .subscribeOn(AndroidSchedulers.mainThread())
-        // 2 - But the next operator should go in the I/O
+        // 2 - Show progress every time a new item is emitted
+        .doOnNext{showProgress()}
         .observeOn(Schedulers.io())
-        // 3 - For each searchQuery, return  a list of Results
         .map { cheeseSearchEngine.search(it) }
-        // 4 - pass the results on the Main Thread
         .observeOn(AndroidSchedulers.mainThread())
-        .subscribe { showResult(it)}
+        .subscribe {
+          // 3 - and hide it when we're ready to display the result
+          hideProgress()
+          showResult(it)}
   }
 
 
