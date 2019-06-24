@@ -36,35 +36,40 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_cheeses.queryEditText
+import kotlinx.android.synthetic.main.activity_cheeses.searchButton
+import java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CheeseActivity : BaseSearchActivity() {
 
   override fun onStart() {
     super.onStart()
 
-    val searchTextObservable = createTextChangeObservable()
+    val textStream = createTextChangeObservable()
+    val buttonClickStream = createButtonClickObservable()
+
+    val searchTextObservable = Observable.merge<String>(buttonClickStream, textStream)
 
     searchTextObservable
-        // 1 - Code should start on the Main thread since it works with View
-        .subscribeOn(AndroidSchedulers.mainThread())
-        // 2 - Show progress every time a new item is emitted
+        // Code should start on the Main thread since it works with View
+        .observeOn(AndroidSchedulers.mainThread())
+        // Show progress every time a new item is emitted
         .doOnNext { showProgress() }
         .observeOn(Schedulers.io())
         .map { cheeseSearchEngine.search(it) }
         .observeOn(AndroidSchedulers.mainThread())
         .subscribe {
-          // 3 - and hide it when we're ready to display the result
+          // and hide it when we're ready to display the result
           hideProgress()
           showResult(it)
         }
   }
 
-  // 1 - Returns an observable, but instead of button clicks, it's text changes
+  // Returns an observable, but instead of button clicks, it's text changes
   private fun createTextChangeObservable(): Observable<String> {
 
-    // 2 - Creating the Observable first
+    // Creating the Observable first
     val textChangedObservable = Observable.create<String> { emitter ->
-      // 3 - when an Observer makes a subscription, first thing to do is create a TextWatcher
+      // when an Observer makes a subscription, first thing to do is create a TextWatcher
       val textWatcher = object : TextWatcher {
 
         override fun afterTextChanged(s: Editable?) = Unit
@@ -76,7 +81,7 @@ class CheeseActivity : BaseSearchActivity() {
           after: Int
         ) = Unit
 
-        // 4 - when the user types (and onTextChanged is [triggered]) we pass the new text value
+        // when the user types (and onTextChanged is [triggered]) we pass the new text value
         override fun onTextChanged(
           s: CharSequence?,
           start: Int,
@@ -87,20 +92,34 @@ class CheeseActivity : BaseSearchActivity() {
               ?.let { emitter.onNext(it) }
         }
       }
-      // 5 - we add the watcher to the TextView (Woah....)
+      // we add the watcher to the TextView (Woah....)
       queryEditText.addTextChangedListener(textWatcher)
 
-      // 6 - remove the watcher
+      // remove the watcher
       emitter.setCancellable {
         queryEditText.removeTextChangedListener(textWatcher)
       }
     }
-
-
-    // 7 - queries need to be more than 2
-    return textChangedObservable.filter { it.length >= 3 }
-
+    return textChangedObservable
+        .filter { it.length >= 3 }
+        .debounce(1000, MILLISECONDS)
   }
 
+  // 1 - Declaring a function that returns an Observable emitting Strings
+  private fun createButtonClickObservable(): Observable<String> {
+    // 2 - creating an Observable. Supplying it with a new ObservableOnSubscribe
+    return Observable.create { emitter ->
+      // 3 - An OnClickListener (I know, not exactly reactive. Bear with me)
+      searchButton.setOnClickListener{
+        // 4 - call onNext and pass the text Value
+        emitter.onNext(queryEditText.text.toString())
+      }
+      // 5 - A good habit to remove Listeners as soon as they are not needed.
+      emitter.setCancellable {
+        searchButton.setOnClickListener(null)
+      }
+    }
+
+  }
 
 }
