@@ -30,6 +30,39 @@
 
 package com.raywenderlich.android.cheesefinder
 
+import io.reactivex.Observable
+import kotlinx.android.synthetic.main.activity_cheeses.*
+
 class CheeseActivity : BaseSearchActivity() {
+
+  override fun onStart() {
+    super.onStart()
+
+    // 1 - Creating an Observable
+    val searchTextObservable = createButtonClickObservable()
+    // 2 - Subscribing to that observable supplying a simple consumer
+    searchTextObservable.subscribe { query ->
+      // 3 - Perform the search and show the results
+      showResult(cheeseSearchEngine.search(query))
+    }
+  }
+
+
+  // 1 - Declaring a function that returns an Observable emitting Strings
+  private fun createButtonClickObservable(): Observable<String> {
+    // 2 - creating an Observable. Supplying it with a new ObservableOnSubscribe
+    return Observable.create { emitter ->
+      // 3 - An OnClickListener (I know, not exactly reactive. Bear with me)
+      searchButton.setOnClickListener{
+        // 4 - call onNext and pass the text Value
+        emitter.onNext(queryEditText.text.toString())
+      }
+      // 5 - A good habit to remove Listeners as soon as they are not needed.
+      emitter.setCancellable {
+        searchButton.setOnClickListener(null)
+      }
+    }
+
+  }
 
 }
