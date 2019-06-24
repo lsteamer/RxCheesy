@@ -61,8 +61,9 @@ class CheeseActivity : BaseSearchActivity() {
 
   // 1 - Returns an observable, but instead of button clicks, it's text changes
   private fun createTextChangeObservable(): Observable<String> {
-    // 2 - return the Observable that takes an ObservableOnSubscribe
-    return Observable.create { emitter ->
+
+    // 2 - Creating the Observable first
+    val textChangedObservable = Observable.create<String> { emitter ->
       // 3 - when an Observer makes a subscription, first thing to do is create a TextWatcher
       val textWatcher = object : TextWatcher {
 
@@ -94,6 +95,10 @@ class CheeseActivity : BaseSearchActivity() {
         queryEditText.removeTextChangedListener(textWatcher)
       }
     }
+
+
+    // 7 - queries need to be more than 2
+    return textChangedObservable.filter { it.length >= 3 }
 
   }
 
